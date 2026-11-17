@@ -70,8 +70,8 @@ pipeline {
 
         string(
                 name: 'AWS_CRED_ID',
-                defaultValue: 'aws-key',
-                description: 'AWS Credentials ID'
+                defaultValue: '<AWS_CREDENTIAL_ID>',
+                description: 'AWS Credentials ID (포트폴리오 공개용 마스킹 값)'
         )
     }
 
@@ -227,8 +227,8 @@ URL    : ${childBuild.absoluteUrl}
                         }
 
                         /*
-     * Android 성공 여부와 관계없이 실행
-     */
+                         * Android 성공 여부와 관계없이 실행
+                         */
                         stage('Windows') {
                             runAppBuild(
                                     'Windows',
