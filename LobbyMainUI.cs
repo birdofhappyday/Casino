@@ -1,4 +1,4 @@
-﻿namespace Ayve.Lobby
+namespace Ayve.Lobby
 {
     using Ayve.Common;
     using Ayve.Data;
@@ -17,7 +17,7 @@
     using UnityEngine.UI;
     using Debug = Ayve.Debug;
 
-    public class LobbyMainUI : MonoBehaviour
+    public partial class LobbyMainUI : MonoBehaviour
     {
         [SerializeField] private Image m_CoverImage;
         [SerializeField] private float m_LobbyAlphaWaitSecond = 0.1f;
@@ -90,9 +90,6 @@
             get => m_MoneyType;
         }
 
-        private DateTime? m_SilverLuckyTicketResetAt;
-        private DateTime? m_RoyalLuckyTicketResetAt;
-        private CancellationTokenSource m_LuckyTicketTimerCancellation;
 
         [HideInInspector]
         public bool IsAvatarExpireCheck = false;
@@ -309,15 +306,6 @@
             return string.Format("NoticeDismissedAt_{0}_{1}", noticeIdx, playerIdx);
         }
 
-        private bool SilverTicketFrame(DateTime now)
-        {
-            return RefreshTicketFrame(
-                m_SilverLuckyButton,
-                m_SilverLuckyRemainTimeRoot,
-                m_SilverLuckyRemainTimeLabel,
-                m_SilverLuckyTicketResetAt,
-                now);
-        }
 
         public void IsBack()
         {
@@ -425,159 +413,6 @@
         /// <summary>
         /// 우선 순위에 따른 팝업 세팅.
         /// </summary>
-        private async void PopupManagerQueueSetting()
-        {
-            await LoadNoticeMessage();
-
-            if (GaManager.Instance.Bootstrapper is LobbyBootstrapper lobby)
-            {
-                lobby.CheckMailBoxReddot();
-
-                Action afterAction = PopupManagerQueue.Instance.OnPopupClosed;
-                if (GaManager.Instance.IsAttendanceDayOff() || GaManager.Instance.IsFirstLogin || GaManager.Instance.IsInBoxRefresh)
-                {
-                    PopupManagerQueue.Instance.Enqueue(
-                        new PopupRequest(
-                            PopupType.Attendance,
-                            () =>
-                            {
-                                PopupManager.Instance.ShowPopup(eUIType.Attendance, GaManager.Instance.GetPlayerData().AttendanceStreakDays, (Action)PopupManagerQueue.Instance.OnPopupClosed);
-                            }
-                            )
-                        );
-
-                    GaManager.Instance.IsFirstLogin = false;
-                    GaManager.Instance.IsInBoxRefresh = false;
-                    GaManager.Instance.SetAttendanceday();
-                }
-
-                if (!IsFirstLobbyEnter)
-                {
-                    PopupManagerQueue.Instance.Enqueue(
-                        new PopupRequest(
-                            PopupType.Notice,
-                            () =>
-                            {
-                                NextNoticShow(0);
-                            }
-                            )
-                        );
-                }
-
-                if (GaManager.Instance.IsLostLimitOver)
-                {
-                    PopupManagerQueue.Instance.Enqueue(
-                        new PopupRequest(
-                            PopupType.LimitOver,
-                            () =>
-                            {
-                                GaManager.Instance.OpenLimitOverPopup(PopupManagerQueue.Instance.OnPopupClosed);
-                            }
-                            )
-                        );
-
-                    GaManager.Instance.IsLostLimitOver = false;
-                }
-
-                if (GaManager.Instance.IsGameCoinOver)
-                {
-                    PopupManagerQueue.Instance.Enqueue(
-                        new PopupRequest(
-                            PopupType.LimitOver,
-                            () =>
-                            {
-                                lobby.MoneyLimitPopup(GameConfig.ToMoneyType(GaManager.Instance.GameCoinOverData.CapFundKind), GaManager.Instance.GameCoinOverData.InboxCheck, () =>
-                                {
-                                    PopupManagerQueue.Instance.OnPopupClosed();
-                                });
-                            }
-                            )
-                        );
-
-                    GaManager.Instance.IsGameCoinOver = false;
-                }
-
-                if (GaManager.Instance.IsRefill || GaManager.Instance.IsKickOut)
-                {
-                    if (GaManager.Instance.IsRefill)
-                    {
-                        GaManager.Instance.RefillMessageData.onConfirm = PopupManagerQueue.Instance.OnPopupClosed;
-                        GaManager.Instance.RefillMessageData.onClose = PopupManagerQueue.Instance.OnPopupClosed;
-
-                        PopupManagerQueue.Instance.Enqueue(
-                            new PopupRequest(
-                                PopupType.Refill,
-                                () =>
-                                {
-                                    PopupManager.Instance.ShowPopup(eUIType.Message, GaManager.Instance.RefillMessageData);
-                                }
-                                )
-                            );
-                    }
-                    else
-                    {
-                        PopupManagerQueue.Instance.Enqueue(
-                            new PopupRequest(
-                                PopupType.Refill,
-                                () =>
-                                {
-                                    MessagePopupData data = new()
-                                    {
-                                        ConfirmBtnText = TextDataManager.Instance.GetString(TextDataManager.TextType.Common, 2),
-                                        Message = "소지 재화가 부족하여\n플레이 중이던 방에서 퇴장되었습니다.",
-                                        onConfirm = PopupManagerQueue.Instance.OnPopupClosed,
-                                        onClose = PopupManagerQueue.Instance.OnPopupClosed,
-                                    };
-
-                                    PopupManager.Instance.ShowPopup(eUIType.Message, data);
-                                }
-                                )
-                            );
-                    }
-
-                    GaManager.Instance.IsRefill = false;
-                    GaManager.Instance.IsKickOut = false;
-                }
-
-                if (GaManager.Instance.Level < GaManager.Instance.GetPlayerLevel)
-                {
-                    PopupManagerQueue.Instance.Enqueue(
-                       new PopupRequest(
-                           PopupType.LevelUp,
-                           () =>
-                           {
-                               ShowLevelUPPopup();
-                           }
-                           )
-                       );
-                }
-
-                PopupManagerQueue.Instance.Enqueue(
-                    new PopupRequest(
-                        PopupType.AvatarExpire,
-                        () =>
-                        {
-                            AvatarExpiryDateCheck(afterAction);
-                        }
-                        )
-                    );
-
-                PopupManagerQueue.Instance.Enqueue(
-                    new PopupRequest(
-                        PopupType.MemberShipExpire,
-                        () =>
-                        {
-                            lobby.MemberShipPopup(() => MemberShipExpiryJudge(afterAction));
-                        }
-                        )
-                    );
-
-                PopupManagerQueue.Instance.TryShowNext();
-            }
-
-            IsFirstLobbyEnter = true;
-
-            PopupManager.Instance.ClosePopup(eUIType.Loading);
         }
 
         private void RefreshReelRS(object data)
@@ -694,21 +529,6 @@
 
         }
 
-        private void NextNoticShow(int page)
-        {
-            var lobby = GaManager.Instance.Bootstrapper as LobbyBootstrapper;
-
-            if (lobby == null) return;
-
-            if (lobby.ShowNoticePopup.Count == 0 || page >= lobby.ShowNoticePopup.Count)
-            {
-                //lobby.MemberShipPopup(() => AvatarExpiryDateCheck(ShowLevelUPPopup));
-                PopupManagerQueue.Instance.OnPopupClosed();
-                return;
-            }
-
-            PopupManager.Instance.ShowPopup(eUIType.LobbyNoticeItem, lobby.ShowNoticePopup[page], (Action)(() => NextNoticShow(++page)));
-        }
 
         private void OnToggleChange(eViewType viewType)
         {
@@ -806,98 +626,6 @@
             var reloginRes = NtManager.GetData<ResumeSigninRS>(proto);
 
             GaManager.Instance.SetPlayerData(reloginRes);
-        }
-
-        private bool RoyalTicketFrame(DateTime now)
-        {
-            return RefreshTicketFrame(
-                m_RoyalLuckyButton,
-                m_RoyalLuckyRemainTimeRoot,
-                m_RoyalLuckyRemainTimeLabel,
-                m_RoyalLuckyTicketResetAt,
-                now);
-        }
-
-        private void SetLuckyTicketResetTimes(ParticipantProfile participantProfile)
-        {
-            m_SilverLuckyTicketResetAt = ParseLuckyTicketResetAt(participantProfile.ChipFreeChargeResetAt);
-            m_RoyalLuckyTicketResetAt = ParseLuckyTicketResetAt(participantProfile.CoinFreeChargeResetAt);
-
-            RestartLuckyTicketTimer();
-        }
-
-        private DateTime? ParseLuckyTicketResetAt(string resetAt)
-        {
-            if (string.IsNullOrEmpty(resetAt))
-                return null;
-
-            try
-            {
-                return TimeManager.Instance.GetParseTime(resetAt);
-            }
-            catch (FormatException exception)
-            {
-                Debug.LogError($"Lucky ticket reset time format error: {resetAt}\n{exception}");
-                return null;
-            }
-        }
-
-        private void RestartLuckyTicketTimer()
-        {
-            StopLuckyTicketTimer();
-
-            if (!isActiveAndEnabled)
-                return;
-
-            m_LuckyTicketTimerCancellation = CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken);
-            RunLuckyTicketTimerAsync(m_LuckyTicketTimerCancellation.Token).Forget();
-        }
-
-        private void StopLuckyTicketTimer()
-        {
-            m_LuckyTicketTimerCancellation?.Cancel();
-            m_LuckyTicketTimerCancellation?.Dispose();
-            m_LuckyTicketTimerCancellation = null;
-        }
-
-        private async UniTask RunLuckyTicketTimerAsync(CancellationToken cancellationToken)
-        {
-            while (!cancellationToken.IsCancellationRequested)
-            {
-                var now = TimeManager.Instance.Now;
-                bool isSilverRunning = SilverTicketFrame(now);
-                bool isRoyalRunning = RoyalTicketFrame(now);
-
-                if (!isSilverRunning && !isRoyalRunning)
-                    return;
-
-                bool isCanceled = await UniTask
-                    .Delay(1000, ignoreTimeScale: true, cancellationToken: cancellationToken)
-                    .SuppressCancellationThrow();
-
-                if (isCanceled)
-                    return;
-            }
-        }
-
-        private bool RefreshTicketFrame(Button button, GameObject remainTimeRoot, TextMeshProUGUI remainTimeLabel, DateTime? resetAt, DateTime now)
-        {
-            bool isRunning = resetAt.HasValue && now <= resetAt.Value;
-            bool shouldBeInteractable = !isRunning;
-
-            if (button.interactable != shouldBeInteractable)
-                button.interactable = shouldBeInteractable;
-
-            if (remainTimeRoot.activeSelf != isRunning)
-                remainTimeRoot.SetActive(isRunning);
-
-            if (!isRunning)
-                return false;
-
-            var remainTime = resetAt.Value - now;
-            remainTimeLabel.text = string.Format("{0:D2}:{1:D2}:{2:D2}", remainTime.Hours, remainTime.Minutes, remainTime.Seconds);
-
-            return true;
         }
 
         private void BGAnimatorSetting()
