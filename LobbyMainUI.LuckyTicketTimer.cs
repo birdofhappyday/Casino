@@ -26,22 +26,12 @@ namespace Ayve.Lobby
         // 럭키 티켓의 남은 시간 및 버튼 상태를 갱신한다.
         private bool SilverTicketFrame(DateTime now)
         {
-            return RefreshTicketFrame(
-                m_SilverLuckyButton,
-                m_SilverLuckyRemainTimeRoot,
-                m_SilverLuckyRemainTimeLabel,
-                m_SilverLuckyTicketResetAt,
-                now);
+            return RefreshTicketFrame(m_SilverLuckyButton, m_SilverLuckyRemainTimeRoot, m_SilverLuckyRemainTimeLabel, m_SilverLuckyTicketResetAt, now);
         }
 
         private bool RoyalTicketFrame(DateTime now)
         {
-            return RefreshTicketFrame(
-                m_RoyalLuckyButton,
-                m_RoyalLuckyRemainTimeRoot,
-                m_RoyalLuckyRemainTimeLabel,
-                m_RoyalLuckyTicketResetAt,
-                now);
+            return RefreshTicketFrame(m_RoyalLuckyButton, m_RoyalLuckyRemainTimeRoot, m_RoyalLuckyRemainTimeLabel, m_RoyalLuckyTicketResetAt, now);
         }
 
         private void SetLuckyTicketResetTimes(ParticipantProfile participantProfile)
